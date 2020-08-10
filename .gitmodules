@@ -1,0 +1,3 @@
+[submodule "lib/pycore"]
+	path = lib/pycore
+	url = https://github.com/rcn8397/pycore.git
