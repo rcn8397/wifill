@@ -9,9 +9,8 @@ from wifill import iwlist_intf
 def test_iwlist_intf():
     print( 'Testing iwlist interface' )
     w = iwlist_intf.iwlist('wlx98482720364f')
+    w.scan()
 
-    w.parse_scan()
-    pdb.set_trace()
     
 def main():
     test_iwlist_intf()

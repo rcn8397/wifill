@@ -141,7 +141,9 @@ class iwlist ( object ):
             else:
                 # All other lines unsupported at this time.
                 pass
-        pdb.set_trace()
+            
+    def scan( self ):
+        self.parse_scan()
 
 # Main
 def main():
