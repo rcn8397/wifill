@@ -8,6 +8,32 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../l
 
 from core.process import Process
 
+class Cell ( object ):
+    '''
+    Cell data object
+    '''
+    def __init__( self, name ):
+        self.name       = name
+        self.address    = None
+        self.essid      = None
+        self.protocol   = None
+        self.mode       = None
+        self.frequency  = None
+        self.channel    = None
+        self.encryption = None
+        self.bitrate    = 0
+        self.quality    = 0.0
+        self.signal     = 0.0
+        try:
+            self.index = self.name.split( ' ' )
+        except Exception:
+            pass
+
+    def debug( self ):
+        for x in vars( self ):
+            print( '{0} = {1}'.format( x, vars( self )[ x ] ) )
+            
+
 class iwlist ( object ):
     '''
     iwlist    Wireless-Tools version 30
@@ -32,31 +58,7 @@ class iwlist ( object ):
                   [interface] genie 
                   [interface] modulation 
 
-    '''
-
-    abbrevcmds = { 'scan'         : 'scanning',
-                   'freq'         : 'frequency',
-                   'chan'         : 'channel',
-                   'bitrate'      : 'bitrate',
-                   'rate'         : 'rate',
-                   'encryp'       : 'encryp',
-                   'keys'         : 'keys',
-                   'pow'          : 'power',
-                   'txp'          : 'txpower',
-                   'retry'        : 'retry',
-                   'ap'           : 'ap',
-                   'accesspoints' : 'accesspoint',
-                   'peers'        : 'peers',
-                   'event'        : 'event',
-                   'auth'         : 'auth',
-                   'wpakeys'      : 'wpakeys',
-                   'genie'        : 'genie',
-                   'mod'          : 'modulation',
-                   
-                   'help'         : '--help',
-                   'version'      : '-v',
-    }
-                    
+    '''                    
     def __init__( self, interface = None ):
         super( iwlist, self ).__init__()
         self._cmd = 'iwlist'
@@ -93,6 +95,53 @@ class iwlist ( object ):
         print( 'Discovered Interfaces:' )
         for intf in self.interfaces:
             print( '\t{0}'.format( intf ) )
+
+    def parse_scan( self ):
+        proc = self.irun( 'scanning' )
+        cells   = dict()
+        name    = None
+        for line in proc.output:
+            sys.stdout.write( line )
+            if 'Cell' in line:
+                tokens       = line.split( ' - ' )
+                name         = tokens[0].strip()
+                current_cell = name
+                cell         = Cell( name )
+                cell.address = tokens[1][ len( 'address' ) + 1 : ].strip()
+                cells[ name ] = ( cell )
+            elif 'ESSID' in line:
+                cells[ name ].essid = line.split( ':' )[1].strip()
+            elif 'Protocol' in line:
+                cells[ name ].protocol = line.split( ':' )[1].strip()
+            elif 'Mode' in line:
+                cells[ name ].mode = line.split( ':' )[1].strip()
+            elif 'Frequency' in line:
+                tokens = line.split( ':' )
+                cells[ name ].frequency = tokens[1][ : tokens[1].index( ' (Channel' ) ]
+                # Parse the channel information
+                chan_substr           = ' (Channel'
+                chan_substr_index     = tokens[1].index( ' (Channel')
+                chan_substr_len       = len( chan_substr )
+                chan_substr_start     = chan_substr_index + chan_substr_len
+                chan_substr_end       = tokens[1].index( ')' )
+                cells[ name ].channel = tokens[1][ chan_substr_start  : chan_substr_end ]
+            elif 'Encription key' in line:
+                cells[ name ].encryption = line.split( ':' )[1].strip()
+            elif 'Bit Rates' in line:
+                cells[ name ].bitrate = line.split( ':' )[1].strip()
+            elif 'Quality=' in line:
+                qual_str          = 'Quality='
+                qual_substr_index = line.index( qual_str )
+                sig_str           = 'Signal level='
+                sig_substr_index  = line.index( sig_str )
+                quality           = line[ qual_substr_index + len( qual_str ): sig_substr_index ].strip()
+                signal            = line[ sig_substr_index + len( sig_str ) : ].strip()
+                cells[ name ].quality = quality
+                cells[ name ].signal  = signal
+            else:
+                # All other lines unsupported at this time.
+                pass
+        pdb.set_trace()
 
 # Main
 def main():
