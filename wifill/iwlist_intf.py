@@ -61,9 +61,12 @@ class iwlist ( object ):
     '''                    
     def __init__( self, interface = None ):
         super( iwlist, self ).__init__()
-        self._cmd = 'iwlist'
+        self._cmd       = 'iwlist'
         self.parse_interfaces()
-        self.interface = interface
+        self.interface  = interface
+        self.cells      = dict()
+        self.essid2cell = dict()
+        
         if self.interface is None:
             self.print_interfaces()
             sys.exit( 'An interface is required to continue' )
@@ -98,37 +101,43 @@ class iwlist ( object ):
 
     def parse_scan( self ):
         proc = self.irun( 'scanning' )
-        cells   = dict()
+
+        # Clear out old data
+        self.cells.clear()
+        self.essid2cell.clear()
+        
         name    = None
         for line in proc.output:
             sys.stdout.write( line )
             if 'Cell' in line:
-                tokens       = line.split( ' - ' )
-                name         = tokens[0].strip()
-                current_cell = name
-                cell         = Cell( name )
-                cell.address = tokens[1][ len( 'address' ) + 1 : ].strip()
-                cells[ name ] = ( cell )
+                tokens             = line.split( ' - ' )
+                name               = tokens[0].strip()
+                current_cell       = name
+                cell               = Cell( name )
+                cell.address       = tokens[1][ len( 'address' ) + 1 : ].strip()
+                self.cells[ name ] = ( cell )
             elif 'ESSID' in line:
-                cells[ name ].essid = line.split( ':' )[1].strip()
+                essid = line.split( ':' )[1].strip().replace('"', '' )
+                self.cells[ name ].essid = essid
+                self.essid2cell[ essid ] = name
             elif 'Protocol' in line:
-                cells[ name ].protocol = line.split( ':' )[1].strip()
+                self.cells[ name ].protocol = line.split( ':' )[1].strip()
             elif 'Mode' in line:
-                cells[ name ].mode = line.split( ':' )[1].strip()
+                self.cells[ name ].mode = line.split( ':' )[1].strip()
             elif 'Frequency' in line:
                 tokens = line.split( ':' )
-                cells[ name ].frequency = tokens[1][ : tokens[1].index( ' (Channel' ) ]
+                self.cells[ name ].frequency = tokens[1][ : tokens[1].index( ' (Channel' ) ]
                 # Parse the channel information
                 chan_substr           = ' (Channel'
                 chan_substr_index     = tokens[1].index( ' (Channel')
                 chan_substr_len       = len( chan_substr )
                 chan_substr_start     = chan_substr_index + chan_substr_len
                 chan_substr_end       = tokens[1].index( ')' )
-                cells[ name ].channel = tokens[1][ chan_substr_start  : chan_substr_end ]
+                self.cells[ name ].channel = tokens[1][ chan_substr_start  : chan_substr_end ]
             elif 'Encription key' in line:
-                cells[ name ].encryption = line.split( ':' )[1].strip()
+                self.cells[ name ].encryption = line.split( ':' )[1].strip()
             elif 'Bit Rates' in line:
-                cells[ name ].bitrate = line.split( ':' )[1].strip()
+                self.cells[ name ].bitrate = line.split( ':' )[1].strip()
             elif 'Quality=' in line:
                 qual_str          = 'Quality='
                 qual_substr_index = line.index( qual_str )
@@ -136,14 +145,21 @@ class iwlist ( object ):
                 sig_substr_index  = line.index( sig_str )
                 quality           = line[ qual_substr_index + len( qual_str ): sig_substr_index ].strip()
                 signal            = line[ sig_substr_index + len( sig_str ) : ].strip()
-                cells[ name ].quality = quality
-                cells[ name ].signal  = signal
+                self.cells[ name ].quality = quality
+                self.cells[ name ].signal  = signal
             else:
                 # All other lines unsupported at this time.
                 pass
             
     def scan( self ):
         self.parse_scan()
+
+    def cell( self, essid ):
+        try:
+            cell = self.essid2cell[ essid ]
+        except KeyError as e:
+            return None
+        return self.cells[ cell ]
 
 # Main
 def main():

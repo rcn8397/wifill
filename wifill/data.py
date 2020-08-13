@@ -37,6 +37,9 @@ class DataStore( object ):
     def store_name( self, store ):
         return self.stores[ store ]
 
+    def store_names( self ):
+        return self.stores
+
     def add_store( self, name, store = [] ):
         self.data[ name ] = store
         self.stores.append( name )
